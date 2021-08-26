@@ -106,6 +106,7 @@ This is still being updated. See links below for details. There is also a [Julia
 
 Papers are in alphabetical order by last name. Papers without journals are pre-prints. Please click on paper links for details. SORTABLE TABLE TO BE ADDED. 
 
+[Simon Freyaldenhoven](https://simonfreyaldenhoven.github.io/), [Christian Hansen](https://www.chicagobooth.edu/faculty/directory/h/christian-b-hansen), Jorge Pérez Pérez & [Jesse M. Shapiro](https://www.brown.edu/Research/Shapiro/)（2021）. [Visualization, Identification, and Estimation in the Linear Panel Event-Study Design](https://www.nber.org/papers/w29170)
 
 [Dmitry Arkhangelsky](https://sites.google.com/view/dmitry-arkhangelsky/home) [<img width="12px" src="https://cdn.jsdelivr.net/npm/simple-icons@v5/icons/twitter.svg" />](https://twitter.com/ArkhangelskyD), [Guido Imbens](https://www.gsb.stanford.edu/faculty-research/faculty/guido-w-imbens), [Lihua Lei](https://lihualei71.github.io/) [<img width="12px" src="https://cdn.jsdelivr.net/npm/simple-icons@v5/icons/twitter.svg" />](https://twitter.com/lihua_lei_stat), [Xiaoman Luo](https://xiaomanluo.github.io/) (2021). [Double-Robust Two-Way-Fixed-Effects Regression For Panel Data](https://arxiv.org/abs/2107.13737).
 
