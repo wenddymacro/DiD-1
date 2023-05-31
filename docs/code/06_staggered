@@ -1,0 +1,150 @@
+---
+layout: default
+title: csdid
+parent: Stata code
+nav_order: 11
+mathjax: true
+image: "../../../assets/images/DiD.png"
+---
+
+# staggered (Roth and Sant'Anna 2023)
+{: .no_toc }
+
+## Table of contents
+{: .no_toc .text-delta }
+
+1. TOC
+{:toc}
+
+---
+
+## Introduction
+The *staggered* package computes the efficient estimator for settings with randomized treatment timing, based on the theoretical results in [Roth and Sant'Anna (2023)](https://psantanna.com/files/Roth_SantAnna_Staggered.pdf). If units are randomly (or quasi-randomly) assigned to begin treatment at different dates, the efficient estimator can potentially offer substantial gains over methods that only impose parallel trends. The package also allows for calculating the generalized difference-in-differences estimators of [Callaway and Sant'Anna(2020)](https://psantanna.com/files/Roth_SantAnna_Staggered.pdf) and [Sun and Abraham(2020)](https://www.sciencedirect.com/science/article/abs/pii/S030440762030378X) and the simple-difference-in-means as special cases. This is the Stata version of the [R package of the same name](https://github.com/jonathandroth/staggered)
+
+## Installation and options
+The package may be installed by using `net install`:
+```applescript
+local github https://raw.githubusercontent.com
+net install staggered, from(`github'/mcaceresb/stata-staggered/main) replace
+```
+You can also clone or download the code manually, e.g. to
+`stata-staggered-main`, and install from a local folder:
+
+```applescript
+cap noi net uninstall staggered
+net install staggered, from(`c(pwd)'/stata-staggered-main)
+```
+
+Take a look at the help file:
+
+```applescript
+help staggered
+```
+
+Syntax:
+```applescript
+staggered y(varlist), g(varlist) t(varlist) i(varlist) estimand(name) [neverTreatedValue(numlist or string)
+                 eventTimeStart(numlist) eventTimeEnd(numlist)]
+```
+where: 
+
+| Variable | Description |
+| ----- | ----- |
+| y | outcome variable |
+| i | panel variable |
+| g | The variable indicating the time at which units where first treated (g=infitnity denotesnever treated)|
+| t | The variable indicating the time period for the panel  |
+| estimand | The estimand. Options are 'simple', 'cohort', 'calendar', 'eventstudy' for simple-weighted, calendar-weighted, and cohort-weighted averageas and event-study parameters. See Roth & Sant'Anna or the {browse "https://github.chandroth/staggered":staggered webpage} for additional details.|
+
+## Generate sample data
+
+
+Here we generate a test dataset with heterogeneous treatments:
+
+```applescript
+clear
+
+local units = 30
+local start = 1
+local end 	= 60
+
+local time = `end' - `start' + 1
+local obsv = `units' * `time'
+set obs `obsv'
+
+egen id	   = seq(), b(`time')  
+egen t 	   = seq(), f(`start') t(`end') 	
+
+sort  id t
+xtset id t
+
+
+set seed 20211222
+
+gen Y 	   		= 0		// outcome variable	
+gen D 	   		= 0		// intervention variable
+gen cohort      = .  	// treatment cohort
+gen effect      = .		// treatment effect size
+gen first_treat = .		// when the treatment happens for each cohort
+gen rel_time	= .     // time - first_treat
+
+levelsof id, local(lvls)
+foreach x of local lvls {
+	local chrt = runiformint(0,5)	
+	replace cohort = `chrt' if id==`x'
+}
+
+
+levelsof cohort , local(lvls)  
+foreach x of local lvls {
+	
+	local eff = runiformint(2,10)
+		replace effect = `eff' if cohort==`x'
+			
+	local timing = runiformint(`start',`end' + 20)	// 
+	replace first_treat = `timing' if cohort==`x'
+	replace first_treat = . if first_treat > `end'
+		replace D = 1 if cohort==`x' & t>= `timing' 
+}
+
+replace rel_time = t - first_treat
+replace Y = id + t + cond(D==1, effect * rel_time, 0) + rnormal()
+```
+
+Generate the graph:
+
+
+```applescript
+xtline Y, overlay legend(off)
+```
+
+<img src="../../../assets/images/test_data.png" height="300">
+
+## Test the command
+
+
+For `staggered` we need the *g* variable which equals the first_treat value for the treated, and 0 for the not treated:
+
+```
+gen gvar = first_treat
+recode gvar (. = 0)
+```
+
+Let's try the basic `staggered` command:
+
+```applescript
+staggered Y, i(id) t(t) g(gvar) estimand(simple)
+```
+
+which will show this output:
+
+```xml
+Staggered Treatment Effect Estimate                      Number of obs = 1,800
+------------------------------------------------------------------------------
+             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+        gvar |   68.06078   2.19746     29.61   0.000    60.75383     69.36772
+------------------------------------------------------------------------------
+```
+
+
