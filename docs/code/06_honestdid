@@ -1,0 +1,137 @@
+---
+layout: default
+title: honestdid
+parent: Stata code
+nav_order: 12
+mathjax: true
+image: "../../../assets/images/DiD.png"
+---
+
+# honestdid (Rambachan and Roth 2023)
+{: .no_toc }
+
+## Table of contents
+{: .no_toc .text-delta }
+
+1. TOC
+{:toc}
+
+---
+
+## Introduction
+The *HonestDiD* package implements the tools for robust inference and sensitivity analysis for differences-in-differences and event study designs developed in Rambachan and Roth (2022). This is the Stata version of the R package of the same name. There is also a Shiny app developed by Chengcheng Fang.
+
+## Installation and options
+
+```applescript
+local github https://raw.githubusercontent.com
+net install honestdid, from(`github'/mcaceresb/stata-honestdid/main) replace
+honestdid _plugin_check
+```
+
+Take a look at the help file:
+
+```applescript
+help honestdid
+```
+Syntax
+```applescript
+honestdid , [options coefplot_options]
+```
+where: 
+Typically at least one of numpre() or pre() and post() are required options.
+| option | Description |
+| ----- | ----- |
+| numpreperiods(int) | number of pre-treatment periods; rest vector entries are assumed to bepost-treatment (required or specify pre()/post())|
+| preperiodindex(numlist) |    pre-period indices (required or specify numpreperiods()) |
+| postperiodindex(numlist) |   post-period indices (required or specify numpreperiods())  |
+| delta(str)   |               delta to use: rm (for relative magnitudes) or sd (second differences) |
+
+Below, we show how the package can be used with the *csdid* package implementing Callaway and Sant’Anna(2021)
+
+## Generate sample data
+
+
+Here we generate a test dataset with heterogeneous treatments:
+
+```applescript
+clear
+
+local units = 30
+local start = 1
+local end 	= 60
+
+local time = `end' - `start' + 1
+local obsv = `units' * `time'
+set obs `obsv'
+
+egen id	   = seq(), b(`time')  
+egen t 	   = seq(), f(`start') t(`end') 	
+
+sort  id t
+xtset id t
+
+
+set seed 20211222
+
+gen Y 	   		= 0		// outcome variable	
+gen D 	   		= 0		// intervention variable
+gen cohort      = .  	// treatment cohort
+gen effect      = .		// treatment effect size
+gen first_treat = .		// when the treatment happens for each cohort
+gen rel_time	= .     // time - first_treat
+
+levelsof id, local(lvls)
+foreach x of local lvls {
+	local chrt = runiformint(0,5)	
+	replace cohort = `chrt' if id==`x'
+}
+
+
+levelsof cohort , local(lvls)  
+foreach x of local lvls {
+	
+	local eff = runiformint(2,10)
+		replace effect = `eff' if cohort==`x'
+			
+	local timing = runiformint(`start',`end' + 20)	// 
+	replace first_treat = `timing' if cohort==`x'
+	replace first_treat = . if first_treat > `end'
+		replace D = 1 if cohort==`x' & t>= `timing' 
+}
+
+replace rel_time = t - first_treat
+replace Y = id + t + cond(D==1, effect * rel_time, 0) + rnormal()
+```
+
+Generate the graph:
+
+
+```applescript
+xtline Y, overlay legend(off)
+```
+
+<img src="../../../assets/images/test_data.png" height="300">
+
+## Test the command
+
+
+For `csdid` we need the *gvar* variable which equals the first_treat value for the treated, and 0 for the not treated:
+
+```
+gen gvar = first_treat
+recode gvar (. = 0)
+```
+
+Let's try the basic `honestdid` command:
+
+```applescript
+qui csdid Y, ivar(id) time(t) gvar(gvar) notyet
+csdid_estat event, window(-4 5) estore(csdid)
+estimates restore csdid
+
+local plotopts xtitle(Mbar) ytitle(95% Robust CI)
+honestdid, pre(3/6) post(7/12) mvec(0.5(0.5)2) coefplot `plotopts'
+```
+
+
